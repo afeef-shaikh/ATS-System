@@ -1,15 +1,9 @@
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from dotenv import load_dotenv
-import base64   
 import streamlit as st
-import os
-import io
-from PIL import Image
-import pdf2image
 import google.generativeai as genai
+import os
+import PyPDF2 as pdf
+import matplotlib.pyplot as plt
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -17,89 +11,135 @@ load_dotenv()
 # Configure the Gemini API
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_gemini_response(input_text, pdf_base64, prompt):
-    try:
-        # Concatenate all inputs into a single string
-        content = f"Job Description: {input_text}\n\nResume Image (Base64): {pdf_base64}\n\nPrompt: {prompt}"
-        
-        model = genai.GenerativeModel('gemini-pro-vision')
-        response = model.generate_content([content])
-        return response.text
-    except Exception as e:
-        st.error(f"Error with Gemini API: {e}")
-        return None
+# Gemini Pro Response
+def get_gemini_response(input):
+    model = genai.GenerativeModel('gemini-pro')
+    response = model.generate_content(input)
+    return response.text
 
-def input_pdf_setup(uploaded_file):
-    try:
-        # Convert the uploaded PDF to image(s)
-        images = pdf2image.convert_from_bytes(uploaded_file.read())
+# Extract text from PDF
+def input_pdf_text(uploaded_file):
+    reader = pdf.PdfReader(uploaded_file)  # Reads the PDF file
+    text = ""
+    for page_index in range(len(reader.pages)):  # Handles multiple pages
+        page = reader.pages[page_index]
+        text += str(page.extract_text())
+    return text
 
-        # Take the first page and convert it to bytes
-        first_page = images[0]
-        img_byte_arr = io.BytesIO()
-        first_page.save(img_byte_arr, format='JPEG')
-        img_byte_arr = img_byte_arr.getvalue()
+# Create a circular progress bar for percentage match
+def create_progress_icon(percentage):
+    fig, ax = plt.subplots(figsize=(2, 2))
+    ax.pie(
+        [percentage, 100 - percentage],
+        startangle=90,
+        colors=['#00cc44', '#e6e6e6'],
+        wedgeprops=dict(width=0.3, edgecolor='w'),
+    )
+    plt.gcf().gca().add_artist(plt.Circle((0, 0), 0.7, color='black'))
+    plt.text(0, 0, f"{percentage}%", ha='center', va='center', fontsize=14, color='white')
+    plt.axis('equal')
+    st.pyplot(fig)
 
-        # Encode to base64
-        return base64.b64encode(img_byte_arr).decode()
-    except Exception as e:
-        st.error(f"Error processing PDF: {e}")
-        return None
+# Prompt Template
+input_prompt = """
+Hey Act Like a skilled or very experienced ATS (Application Tracking System)
+with a deep understanding of tech field, software engineering, data science, data analyst,
+and big data engineer. Your task is to evaluate the resume based on the given job description.
+You must consider the job market is very competitive, and you should provide 
+best assistance for improving resumes. Assign the percentage Matching based 
+on the JD and
+list the important missing keywords with high accuracy
+resume:{text}
+description:{jd}
+
+I want the response in one single string having the structure
+{{"JD Match":"%","MissingKeywords:[]","Profile Summary":"", "Suggestions":""}}
+"""
 
 # Streamlit App
-st.set_page_config(page_title="ATS Resume Expert")
-st.header("Application Tracking System")
-input_text = st.text_area("Job Description: ", key="input")
-uploaded_file = st.file_uploader("Upload your resume (PDF)...", type=["pdf"])
+st.title("📋 Smart ATS: Optimize Your Resume for Success")
+st.markdown(
+    """
+    <style>
+        .stButton > button {
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        .stTextArea textarea {
+            border-radius: 10px;
+            font-family: 'Arial', sans-serif;
+        }
+        .stFileUploader div {
+            border-radius: 10px;
+        }
+        
+        
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-if uploaded_file is not None:
-    st.write("PDF Uploaded Successfully")
+st.markdown("<div class='main-container'>", unsafe_allow_html=True)
 
-# Buttons for actions
-submit1 = st.button("Tell me about the resume")
-submit3 = st.button("Percentage match")
+st.text("🤖 Improve Your Resume for ATS Compatibility")
+jd = st.text_area("📄 Paste the Job Description", height=150, help="Enter the job description here.")
+uploaded_file = st.file_uploader(
+    "📁 Upload Your Resume (PDF Format)",
+    type="pdf",
+    help="Please upload your resume in PDF format.",
+)
 
-input_prompt1 = """
-You are an experienced Technical Human Resource Manager with expertise in evaluating candidates for tech roles. 
-Your task is to assess the provided resume in the context of the given job description for the specified role.
+submit = st.button("✨ Analyze My Resume")
 
-Please provide a comprehensive and professional evaluation, including:
+st.markdown("</div>", unsafe_allow_html=True)
 
-1. An analysis of how well the candidate's experience, skills, and qualifications align with the job requirements.
-2. A detailed list of the candidate’s strengths and how they match the role's demands.
-3. An objective assessment of the candidate's weaknesses or areas where they may not fully meet the job criteria.
-4. Any specific recommendations for the candidate to improve or gain qualifications that would strengthen their candidacy.
+if submit:
+    if uploaded_file is not None:
+        text = input_pdf_text(uploaded_file)  # Extract text from the uploaded PDF
+        
+        if not jd:
+            st.error("Please paste the job description.")
+        else:
+            # Format the prompt with the resume text and job description
+            formatted_prompt = input_prompt.format(text=text, jd=jd)
+            
+            try:
+                # Call the API with the formatted prompt
+                response = get_gemini_response(formatted_prompt)
+                
+                # Parse the JSON response
+                response_data = eval(response)  # Ensure the response is in JSON format
+                match_percentage = int(response_data["JD Match"].strip('%'))
+                missing_keywords = response_data["MissingKeywords"]
+                profile_summary = response_data["Profile Summary"]
+                suggestions = response_data.get("Suggestions", "No suggestions provided.")
+                
+                # Display the results
+                st.subheader("Analysis Result")
+                
+                # Job Match Percentage
+                st.markdown("### Job Match Percentage")
+                create_progress_icon(match_percentage)
+                
+                # Missing Keywords
+                st.markdown("### Missing Keywords")
+                if missing_keywords:
+                    st.write(", ".join(missing_keywords))
+                else:
+                    st.write("No missing keywords found!")
+                
+                # Profile Summary
+                st.markdown("### Profile Summary")
+                st.write(profile_summary)
 
-Ensure that your response is detailed, well-structured, and concise, highlighting key aspects of the resume relevant 
-to the position. Avoid generic or superficial comments, and provide actionable feedback where applicable.
-
-"""
-
-
-input_prompt2 = """
-You are an advanced ATS (Applicant Tracking System) scanner with an in-depth understanding of how ATS software evaluates resumes. Your task is to assess the provided resume against the job description in a structured and insightful manner.
-
-1. **Match Percentage**: Begin by providing a precise percentage that indicates how closely the resume matches the job description.
-2. **Missing Keywords**: Next, identify and list key skills, qualifications, or terms that are present in the job description but are missing from the resume. Be specific about the relevance of these keywords to the role.
-3. **Final Assessment**: Conclude with a detailed analysis of the candidate’s suitability for the position. Highlight strengths, weaknesses, and any areas where the resume can be improved for a better match to the job description. Offer suggestions for enhancement if applicable.
-
-Your response should be clear, well-structured, and focused on actionable insights. Ensure the evaluation reflects both technical and qualitative aspects of the resume against the job description.
-
-"""
-
-if submit1 and uploaded_file:
-    pdf_base64 = input_pdf_setup(uploaded_file)
-    if pdf_base64:
-        response = get_gemini_response(input_text, pdf_base64, input_prompt1)
-        st.subheader("The response is:")
-        st.write(response)
-
-elif submit3 and uploaded_file:
-    pdf_base64 = input_pdf_setup(uploaded_file)
-    if pdf_base64:
-        response = get_gemini_response(input_text, pdf_base64, input_prompt2)
-        st.subheader("The response is:")
-        st.write(response)
-
-else:
-    st.write("Upload a PDF resume and provide a job description to evaluate.")
+                # Suggestions
+                st.markdown("### Suggestions for Improvement")
+                st.write(suggestions)
+            
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+    else:
+        st.error("Please upload a PDF resume.")
