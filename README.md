@@ -11,7 +11,7 @@ The **ATS Resume Analyzer** is an intuitive tool designed to help job seekers op
 ## Requirements
 
 To run the application, make sure you have the following installed:
-- Python 3.x
+- Python 3.10
 - Required Python libraries (listed in `requirements.txt`)
 
 ## Installation
@@ -60,17 +60,6 @@ Follow these steps to set up the project on your local machine:
 
 ## Contact:
 For questions or feedback, feel free to reach out to me at achiever.afeef04@gmail.com.
-
-
-### Breakdown of Sections:
-- **Project Name & Description**: Explains the tool's purpose, which is to help users optimize resumes for ATS.
-- **Features**: Key capabilities of the application.
-- **Requirements**: Details on what tools or libraries are needed to run the project.
-- **Installation Instructions**: Step-by-step guide on setting up the project locally.
-- **How It Works**: Instructions for the user on how to interact with the tool.
-- **Technologies Used**: The major technologies that power the project.
-- **License**: Specifies that the project is open-source under the MIT License.
-- **Contact Information**: Provides a way for users to reach out for more information or support.
 
 Feel free to customize it further depending on specific needs or changes in your project.
 
