@@ -47,7 +47,7 @@ with a deep understanding of tech field, software engineering, data science, dat
 and big data engineer. Your task is to evaluate the resume based on the given job description.
 You must consider the job market is very competitive, and you should provide 
 best assistance for improving resumes. Assign the percentage Matching based 
-on the JD and
+on the Job Desription (JD) and
 list the important missing keywords with high accuracy
 resume:{text}
 description:{jd}
