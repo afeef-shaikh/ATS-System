@@ -61,6 +61,4 @@ Follow these steps to set up the project on your local machine:
 ## Contact:
 For questions or feedback, feel free to reach out to me at achiever.afeef04@gmail.com.
 
-Feel free to customize it further depending on specific needs or changes in your project.
-
 
